@@ -64,8 +64,8 @@ for file in ojl_files:
     yearly_max = get_max(data.variables["sf_Atl"],latitude)
     #append to results array
     max_amoc.append(yearly_max)
-    #testing
-    print("year:",year,"value:", yearly_max)
+    
+    print("year:",year,"value:", yearly_max)#checking progress, can be removed
     
 
 # File path for saving the CSV file
