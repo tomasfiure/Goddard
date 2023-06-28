@@ -41,9 +41,9 @@ box_url = urllib.request.urlopen(url).read()
 box_soup = BeautifulSoup(box_url,'lxml')
 
 #get links to individual files, split by type
-oij_files=[]
+oijl_files=[]
 for element in box_soup.find_all('td', class_='link')[1:][::2]:
-    oij_files.append(element.find('a').get('href'))
+    oijl_files.append(element.find('a').get('href'))
 
 ojl_files=[]
 for element in box_soup.find_all('td', class_='link')[2:][::2]:
