@@ -3,6 +3,7 @@ import requests
 from bs4 import BeautifulSoup
 import urllib
 import pandas as pd
+import os
 
 SSP245 = 'https://portal.nccs.nasa.gov/datashare/modelE_ocean/E213SSP245/'
 
@@ -16,16 +17,50 @@ def get_max(data,latitude):
     return maximum
 
 # Function to get average density for given region
-def get_density(data,area,latitude,longitude,depth):
+# def get_density(data,area,latitude,longitude,depth):
+#     density = 0
+#     total_vol = 0 
+#     for lat in latitude:
+#         for long in longitude:
+#             for dep in range(len(depth)):
+#                 if data[dep][lat][long] > 0:     
+#                     density += data[dep][lat][long] * area[dep][lat][long]
+#                     total_vol += area[dep][lat][long]
+#     return density/total_vol
+
+# Function to get average density for given region
+# Regions = [[[lat1,lat2],[long1,long2],[depth1,depth2]],...]
+def get_density_region(data,area,regions):
+    visited_regions = set()
     density = 0
+    total_vol = 0 
+    #print(area[:])
+    for region in regions:
+        latitude = region[0]
+        longitude = region[1]
+        depth = region[2]
+        for lat in range(latitude[0],latitude[1]):
+            for long in range(longitude[0],longitude[1]):
+                for dep in range(depth[0],depth[1]):
+                    if (lat,long,dep) not in visited_regions:
+                        den = data[dep][lat][long]
+                        area_ind = area[dep][lat][long]
+                        if den > 0: #and area[dep][lat][long]:     
+                            density += den * area_ind
+                            total_vol += area_ind
+                            visited_regions.add((lat,long,dep))
+    return density/total_vol
+
+# Function to get average density for given region
+def get_sst(data,area,latitude,longitude):
+    sst = 0
     total_vol = 0 
     for lat in latitude:
         for long in longitude:
-            for dep in range(len(depth)):
-                if data[dep][lat][long] > 0:     
-                    density += data[dep][lat][long] * area[dep][lat][long]
-                    total_vol += area[dep][lat][long]
-    return density/total_vol
+            if data[lat][long] > 0:     
+                sst += data[lat][long] * area[lat][long]
+                total_vol += area[lat][long]
+    return sst/total_vol
 
 # Function to access individual url and convert to usable netcdf object
 def access_url(url):
@@ -48,6 +83,7 @@ def access_url(url):
 
 #function used to save extracted data into csv. NOTE: if appeneded to existing, there cannot be years in new data that are not in old data. To fix this, put all relevant years in starting csv an/or pd dataframe
 def save_data(data_lists,titles,filename,mode):#format:([x,y,...], [x title, y title, ...], filename, mode: 'n' = create new file, 'a' = append to existing file)
+    
     data={}
     # Combine the arrays using zip()
     for i in range(len(data_lists)):
@@ -124,3 +160,55 @@ def get_files(url):#file types: 'oijl', 'oij', 'ojl', 'other'| returns dict[ense
         output[ensemble_name[:-1]] = {'Annual':dict_ts['Annual'], 'Monthly': dict_ts['Monthly']}
     return output
 
+def access_netcdf_files(folder_path):
+    output = []
+    for root, dirs, files in os.walk(folder_path):
+        for file in files:
+            if file.endswith('.nc'):  # Filter for NetCDF files
+                file_path = os.path.join(root, file)
+                print("Processing file:", file_path)
+                data = nc.Dataset(file_path, 'r')  # 'r' for read-only mode
+                output.append(data)
+    return output
+         
+# Function to return model paramters for inputted regions
+# Input paramters as option separated by a space, for example "NATL Irm Lab"
+# Options: NATL, Irm, Is
+def pick_region(regions,depth):
+    # Depth input options
+    if depth == '1000m':
+        dep = [0,21] # 0 - 958 meters
+    elif depth == '500m':
+        dep = [0,17] # 0 - 470 meters
+    elif depth == '200m':
+        dep = [0,11] # 0 - 192 meters
+    elif depth == '100m':
+        dep = [0,6] # 0 - 90 meters
+        
+    regions = regions.split('_')
+    output = []
+    for region in regions:
+        # Region Input options
+        if region == 'NATL':
+            # North Atlantic
+            lat = [130,171]#[ 40 , 80 ]
+            long = [79,136]#[-80 = 79, -10 = 135]
+            output.append([lat,long,dep])
+            # North Atlantic/ Arctic
+            lat = [140,170]#[ 50 , 80 ]
+            long = [136,184]#[-10 = 135, 50 = 183]
+            output.append([lat,long,dep])
+            
+        elif region == 'Irm':
+            lat = [146,156]#[ 56 , 65 ]
+            long = [108,136]#[-80 = 79, -10 = 135]
+            output.append([lat,long,dep])
+            
+        elif region == 'Lab':
+            lat = [142,156]#[ 50 , 80 ]
+            long = [83,109]#[-10 = 135, 50 = 183]
+            regions.append([lat,long,dep])
+            
+    return output     
+            
+#print(get_files(SSP245)['SSP245a']['Annual']['oijl'])
